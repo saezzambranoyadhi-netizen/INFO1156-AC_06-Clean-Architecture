@@ -1,11 +1,24 @@
-import { Module } from "@nestjs/common"
-import { LikesController } from "@/likes/likes.controller"
-import { LikesService } from "@/likes/likes.service"
-import { PostsModule } from "@/posts/posts.module"
+import { Module } from "@nestjs/common";
+import { LikesController } from "./likes.controller";
+import { LikesService } from "./likes.service";
+import { LikesPrismaRepository } from "./infrastructure/repositories/likes-prisma.repository";
+import { GetLikesUseCase } from "./application/use-cases/get-likes.use-case";
 
 @Module({
-    imports: [PostsModule],
-    controllers: [LikesController],
-    providers: [LikesService],
+  controllers: [LikesController],
+  providers: [
+    LikesService,
+    LikesPrismaRepository,
+    {
+      provide: "LikesRepository",
+      useClass: LikesPrismaRepository,
+    },
+    {
+      provide: GetLikesUseCase,
+      useFactory: (repo: LikesPrismaRepository) =>
+        new GetLikesUseCase(repo),
+      inject: [LikesPrismaRepository],
+    },
+  ],
 })
 export class LikesModule {}

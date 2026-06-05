@@ -1,60 +1,56 @@
-import { Injectable, NotFoundException } from "@nestjs/common"
-import { PrismaService } from "@/shared/prisma.service"
+import { Injectable } from "@nestjs/common";
+import { GetProhibitedWordsUseCase } from "./application/use-cases/get-prohibited-words.use-case";
+import { CreateProhibitedWordUseCase } from "./application/use-cases/create-prohibited-word.use-case";
+import { DeleteProhibitedWordUseCase } from "./application/use-cases/delete-prohibited-word.use-case";
+import { ModerationPrismaRepository } from "./infrastructure/repositories/moderation-prisma.repository";
+import { ProhibitedWord } from "./domain/entities/prohibited-word.entity";
 
 export type ModerationResult = {
-    approved: boolean
-    reason?: string
-    category?: string
-}
+  approved: boolean;
+  reason?: string;
+  category?: string;
+};
 
 const buildFuzzyRegex = (word: string) => {
-    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    return new RegExp(escaped.split("").join("[^a-zA-Z0-9]*"), "gi")
-}
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(escaped.split("").join("[^a-zA-Z0-9]*"), "gi");
+};
 
 @Injectable()
 export class ModerationService {
-    constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly getProhibitedWordsUseCase: GetProhibitedWordsUseCase,
+    private readonly createProhibitedWordUseCase: CreateProhibitedWordUseCase,
+    private readonly deleteProhibitedWordUseCase: DeleteProhibitedWordUseCase,
+    private readonly moderationRepository: ModerationPrismaRepository,
+  ) {}
 
-    async moderate(text: string): Promise<ModerationResult> {
-        const words = await this.prisma.prohibitedWord.findMany()
+  async moderate(text: string): Promise<ModerationResult> {
+    const words = await this.moderationRepository.findProhibitedWords();
 
-        for (const pw of words) {
-            const regex = buildFuzzyRegex(pw.word)
-            if (regex.test(text)) {
-                return {
-                    approved: false,
-                    reason: `Contiene palabra prohibida: "${pw.word}"`,
-                    category: pw.category,
-                }
-            }
-        }
-
-        return { approved: true }
+    for (const pw of words) {
+      const regex = buildFuzzyRegex(pw.word);
+      if (regex.test(text)) {
+        return {
+          approved: false,
+          reason: `Contiene palabra prohibida: "${pw.word}"`,
+          category: pw.category,
+        };
+      }
     }
 
-    findAll() {
-        return this.prisma.prohibitedWord.findMany({
-            orderBy: { createdAt: "desc" },
-        })
-    }
+    return { approved: true };
+  }
 
-    create(word: string, category: string) {
-        return this.prisma.prohibitedWord.create({ data: { word, category } })
-    }
+  async findAll(): Promise<ProhibitedWord[]> {
+    return this.getProhibitedWordsUseCase.execute();
+  }
 
-    async delete(id: string) {
-        try {
-            return await this.prisma.prohibitedWord.delete({ where: { id } })
-        } catch (err: unknown) {
-            if (
-                err instanceof Error &&
-                "code" in err &&
-                (err as { code: string }).code === "P2025"
-            ) {
-                throw new NotFoundException("Palabra prohibida no encontrada")
-            }
-            throw err
-        }
-    }
+  async create(word: string, category: string): Promise<ProhibitedWord> {
+    return this.createProhibitedWordUseCase.execute(word, category);
+  }
+
+  async delete(id: string): Promise<ProhibitedWord> {
+    return this.deleteProhibitedWordUseCase.execute(id);
+  }
 }

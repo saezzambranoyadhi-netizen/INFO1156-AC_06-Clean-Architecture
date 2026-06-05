@@ -1,56 +1,41 @@
-import { BadRequestException, Injectable } from "@nestjs/common"
-import { CreatePostDto } from "@/posts/posts.dtos"
-import { ModerationService } from "@/moderation/moderation.service"
-import { PrismaService } from "@/shared/prisma.service"
+import { Injectable } from "@nestjs/common";
+import { CreatePostUseCase } from "./application/use-cases/create-post.use-case";
+import { GetPostsUseCase } from "./application/use-cases/get-posts.use-case";
+import { GetPostByIdUseCase } from "./application/use-cases/get-post-by-id.use-case";
+import { GetFeedUseCase } from "./application/use-cases/get-feed.use-case";
+import { Post } from "./domain/entities/post.entity";
+import { FeedPost } from "./domain/repositories/posts.repository";
 
 @Injectable()
 export class PostsService {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly moderationService: ModerationService,
-    ) {}
+  constructor(
+    private readonly createPostUseCase: CreatePostUseCase,
+    private readonly getPostsUseCase: GetPostsUseCase,
+    private readonly getPostByIdUseCase: GetPostByIdUseCase,
+    private readonly getFeedUseCase: GetFeedUseCase,
+  ) {}
 
-    async create(data: CreatePostDto) {
-        const text = `${data.title} ${data.description}`
-        const moderation = await this.moderationService.moderate(text)
+  async create(data: {
+    title: string;
+    description: string;
+    imageUrl: string;
+    categoryId?: string;
+  }): Promise<Post> {
+    return this.createPostUseCase.execute(data);
+  }
 
-        if (!moderation.approved) {
-            throw new BadRequestException(
-                moderation.reason ?? "Post bloqueado por moderación",
-            )
-        }
+  async findAll(): Promise<Post[]> {
+    return this.getPostsUseCase.execute();
+  }
 
-        return await this.prisma.post.create({ data })
-    }
+  async findById(id: string): Promise<Post | null> {
+    return this.getPostByIdUseCase.execute(id);
+  }
 
-    findAll() {
-        return this.prisma.post.findMany({
-            orderBy: { createdAt: "desc" },
-        })
-    }
-
-    findById(id: string) {
-        return this.prisma.post.findUnique({ where: { id } })
-    }
-
-    async getFeedPosts(categoryId?: string) {
-        const posts = await this.prisma.post.findMany({
-            where: categoryId ? { categoryId } : undefined,
-            include: { comments: true, likes: true, category: true },
-        })
-
-        return posts.map((post) => ({
-            id: post.id,
-            title: post.title,
-            description: post.description,
-            imageUrl: post.imageUrl,
-            categoryId: post.categoryId,
-            category: post.category?.name ?? null,
-            createdAt: post.createdAt,
-            updatedAt: post.updatedAt,
-            likesCount: post.likes.reduce((sum, l) => sum + l.weight, 0),
-            commentsCount: post.comments.length,
-            relevanceScore: 0,
-        }))
-    }
+  async getFeed(
+    mode: string,
+    categoryId?: string,
+  ): Promise<{ mode: string; count: number; rows: FeedPost[] }> {
+    return this.getFeedUseCase.execute(mode, categoryId);
+  }
 }

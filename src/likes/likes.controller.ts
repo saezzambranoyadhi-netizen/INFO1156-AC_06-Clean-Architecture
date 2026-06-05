@@ -1,13 +1,12 @@
-import { Body, Controller, Param, Post } from "@nestjs/common"
-import { LikesService } from "@/likes/likes.service"
-import { AddLikeDto } from "@/posts/posts.dtos"
+import { Controller, Get } from "@nestjs/common";
+import { LikesService } from "./likes.service";
 
-@Controller("api/posts/:id/likes")
+@Controller("likes")
 export class LikesController {
-    constructor(private readonly likesService: LikesService) {}
+  constructor(private readonly likesService: LikesService) {}
 
-    @Post()
-    create(@Param("id") postId: string, @Body() body: AddLikeDto) {
-        return this.likesService.create(postId, body)
-    }
+  @Get()
+  findAll(): Promise<any[]> {
+    return this.likesService.findAll();
+  }
 }
