@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { GetLikesUseCase } from "./application/use-cases/get-likes.use-case";
 import { CreateLikeUseCase } from "./application/use-cases/create-like.use-case";
 import { AddLikeDto } from "../posts/posts.dtos";
