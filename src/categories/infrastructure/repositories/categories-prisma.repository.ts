@@ -12,6 +12,6 @@ export class CategoriesPrismaRepository implements CategoriesRepository {
       orderBy: { name: "asc" },
     });
 
-    return results.map((c) => new Category(c.id, c.name));
+    return results.map((c) => new Category(c.id, c.name, c.slug));
   }
 }

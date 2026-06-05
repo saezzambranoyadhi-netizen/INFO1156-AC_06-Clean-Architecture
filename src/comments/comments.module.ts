@@ -20,9 +20,15 @@ import { ModerationService } from "../moderation/moderation.service";
     },
     {
       provide: ListCommentsUseCase,
-      useFactory: (repo: CommentsPrismaRepository) =>
-        new ListCommentsUseCase(repo),
-      inject: [CommentsPrismaRepository],
+      useFactory: (
+        repo: CommentsPrismaRepository,
+        postsService: PostsService,
+      ) =>
+        new ListCommentsUseCase(repo, async (postId) => {
+          const post = await postsService.findById(postId);
+          return !!post;
+        }),
+      inject: [CommentsPrismaRepository, PostsService],
     },
     {
       provide: CreateCommentUseCase,
